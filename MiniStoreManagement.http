@@ -1,0 +1,11 @@
+@MiniStoreManagement_HostAddress = http://localhost:5173
+
+GET {{MiniStoreManagement_HostAddress}}/openapi/v1.json
+Accept: application/json
+
+###
+
+GET {{MiniStoreManagement_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
