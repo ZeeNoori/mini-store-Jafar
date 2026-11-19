@@ -2,7 +2,7 @@ using System;
 
 namespace MiniStoreManagement.Contracts.Requests
 {
-    public class CreateCustomerRequest
+    public class CustomerRequest
     {
         public string FullName { get; set; } = string.Empty;
 

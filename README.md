@@ -60,6 +60,8 @@ dotnet tool update --global dotnet-ef
    dotnet restore
    ```
 
+   This downloads all NuGet packages declared in `MiniStoreManagement.csproj` and should be run after cloning the repository.
+
 3. Check the database connection string in `appsettings.json`:
 
    ```json

@@ -28,6 +28,7 @@ namespace MiniStoreManagement.Controllers
             {
                 Items = customers.Select(c => new CustomerResponse
                 {
+                    Id = c.Id,
                     FullName = c.FullName,
                     Email = c.Email,
                     Phone = c.Phone
@@ -37,9 +38,30 @@ namespace MiniStoreManagement.Controllers
             return Ok(response);
         }
 
+        [HttpGet("{id:int}")]
+        public async Task<IActionResult> GetCustomerById([FromRoute] int id)
+        {
+
+            var customer = await _customerContext.Customers.FindAsync(id);
+
+            if (customer is null)
+            {
+                return NotFound("User does not exist");
+            }
+
+            var response = new CustomerResponse
+            {
+                Id = customer.Id,
+                FullName = customer.FullName,
+                Email = customer.Email,
+                Phone = customer.Phone
+            };
+            return Ok(response);
+        }
+
         [HttpPost]
 
-        public async Task<IActionResult> AddCustomer([FromBody] CreateCustomerRequest request)
+        public async Task<IActionResult> AddCustomer([FromBody] CustomerRequest request)
         {
 
 
@@ -63,8 +85,64 @@ namespace MiniStoreManagement.Controllers
 
             return Ok(response);
         }
+
+        [HttpPut("{id:int}")]
+
+        public async Task<IActionResult> EditCustomer([FromRoute] int id, [FromBody] CustomerRequest request)
+        {
+            var customer = await _customerContext.Customers.FindAsync(id);
+
+            if (customer is null)
+            {
+                return NotFound();
+            }
+
+
+            var modifiedCustomer = new Customer
+            {
+                Id = id,
+                FullName = request.FullName,
+                Email = request.Email,
+                Phone = request.Phone
+            };
+
+
+            _customerContext.Customers.Update(modifiedCustomer);
+
+            await _customerContext.SaveChangesAsync();
+
+            var response = new CustomerResponse
+            {
+                Id = modifiedCustomer.Id,
+                FullName = modifiedCustomer.FullName,
+                Email = modifiedCustomer.Email,
+                Phone = modifiedCustomer.Phone
+            };
+            return Ok(response);
+        }
+
+
+        [HttpDelete("{id:int}")]
+
+
+        public async Task<IActionResult> RemoveCustomer([FromRoute] int id)
+        {
+
+            var customer = await _customerContext.Customers.FindAsync(id);
+
+            if (customer is null)
+            {
+                return NotFound();
+            }
+
+            _customerContext.Customers.Remove(customer);
+            await _customerContext.SaveChangesAsync();
+            return NoContent();
+        }
+
     }
 }
+
 
 
 
