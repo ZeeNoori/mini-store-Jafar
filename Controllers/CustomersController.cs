@@ -83,7 +83,8 @@ namespace MiniStoreManagement.Controllers
                 Phone = customer.Phone
             };
 
-            return Ok(response);
+            response.Id = customer.Id;
+            return CreatedAtAction(nameof(GetCustomerById), new { id = customer.Id }, response);
         }
 
         [HttpPut("{id:int}")]
@@ -98,7 +99,7 @@ namespace MiniStoreManagement.Controllers
             }
 
 
-            var modifiedCustomer = new Customer
+            var NewCustomer = new Customer
             {
                 Id = id,
                 FullName = request.FullName,
@@ -106,17 +107,21 @@ namespace MiniStoreManagement.Controllers
                 Phone = request.Phone
             };
 
+            customer.Id = NewCustomer.Id;
+            customer.FullName = NewCustomer.FullName;
+            customer.Email = NewCustomer.Email;
+            customer.Phone = NewCustomer.Phone;
 
-            _customerContext.Customers.Update(modifiedCustomer);
+            _customerContext.Customers.Update(customer);
 
             await _customerContext.SaveChangesAsync();
 
             var response = new CustomerResponse
             {
-                Id = modifiedCustomer.Id,
-                FullName = modifiedCustomer.FullName,
-                Email = modifiedCustomer.Email,
-                Phone = modifiedCustomer.Phone
+                Id = customer.Id,
+                FullName = customer.FullName,
+                Email = customer.Email,
+                Phone = customer.Phone
             };
             return Ok(response);
         }
