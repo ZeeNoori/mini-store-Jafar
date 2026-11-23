@@ -1,10 +1,9 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using MiniStoreManagement.Contracts.Requests;
 using MiniStoreManagement.Contracts.Responses;
-using MiniStoreManagement.Data;
 using MiniStoreManagement.Models;
+using MiniStoreManagement.Repositories;
 
 namespace MiniStoreManagement.Controllers
 {
@@ -13,16 +12,16 @@ namespace MiniStoreManagement.Controllers
     public class CustomersController : ControllerBase
     {
 
-        private readonly AppDbContext _customerContext;
-        public CustomersController(AppDbContext context)
+        private readonly ICustomerRepository _customerRepository;
+        public CustomersController(ICustomerRepository customerRepository)
         {
-            _customerContext = context;
+            _customerRepository = customerRepository;
         }
 
         [HttpGet]
         public async Task<IActionResult> GetAllCustomers()
         {
-            var customers = await _customerContext.Customers.ToListAsync();
+            var customers = await _customerRepository.GetAllCustomersAsync();
 
             var response = new ApiResponse<CustomerResponse>
             {
@@ -42,7 +41,7 @@ namespace MiniStoreManagement.Controllers
         public async Task<IActionResult> GetCustomerById([FromRoute] int id)
         {
 
-            var customer = await _customerContext.Customers.FindAsync(id);
+            var customer = await _customerRepository.GetCustomerByIdAsync(id);
 
             if (customer is null)
             {
@@ -72,9 +71,7 @@ namespace MiniStoreManagement.Controllers
                 Phone = request.Phone
             };
 
-            await _customerContext.Customers.AddAsync(customer);
-
-            await _customerContext.SaveChangesAsync();
+            customer = await _customerRepository.AddCustomerAsync(customer);
 
             var response = new CustomerResponse
             {
@@ -91,30 +88,14 @@ namespace MiniStoreManagement.Controllers
 
         public async Task<IActionResult> EditCustomer([FromRoute] int id, [FromBody] CustomerRequest request)
         {
-            var customer = await _customerContext.Customers.FindAsync(id);
-
-            if (customer is null)
+            var newCustomer = new Customer
             {
-                return NotFound();
-            }
-
-
-            var NewCustomer = new Customer
-            {
-                Id = id,
                 FullName = request.FullName,
                 Email = request.Email,
                 Phone = request.Phone
             };
-
-            customer.Id = NewCustomer.Id;
-            customer.FullName = NewCustomer.FullName;
-            customer.Email = NewCustomer.Email;
-            customer.Phone = NewCustomer.Phone;
-
-            _customerContext.Customers.Update(customer);
-
-            await _customerContext.SaveChangesAsync();
+            var customer = await _customerRepository.EditCustomerAsync(id, newCustomer);
+            if (customer is null) return NotFound();
 
             var response = new CustomerResponse
             {
@@ -133,15 +114,10 @@ namespace MiniStoreManagement.Controllers
         public async Task<IActionResult> RemoveCustomer([FromRoute] int id)
         {
 
-            var customer = await _customerContext.Customers.FindAsync(id);
-
-            if (customer is null)
+            if (!await _customerRepository.RemoveCustomerAsync(id))
             {
                 return NotFound();
             }
-
-            _customerContext.Customers.Remove(customer);
-            await _customerContext.SaveChangesAsync();
             return NoContent();
         }
 

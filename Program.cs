@@ -2,6 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using MiniStoreManagement.Data;
 using MiniStoreManagement.Models;
+using MiniStoreManagement.Repositories;
 using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -12,7 +13,10 @@ builder.Services.AddOpenApi();
 builder.Services.AddControllers();
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("defaultConnection")));
-
+builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
+builder.Services.AddScoped<ICustomerRepository, CustomerRepository>();
+builder.Services.AddScoped<IProductRepository, ProductRepository>();
+builder.Services.AddScoped<IOrderRepository, OrderRepository>();
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.

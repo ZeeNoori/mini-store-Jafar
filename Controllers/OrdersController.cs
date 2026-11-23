@@ -1,9 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using MiniStoreManagement.Contracts.Requests;
 using MiniStoreManagement.Contracts.Responses;
-using MiniStoreManagement.Data;
 using MiniStoreManagement.Models;
+using MiniStoreManagement.Repositories;
 
 namespace MiniStoreManagement.Controllers
 {
@@ -11,19 +10,17 @@ namespace MiniStoreManagement.Controllers
     [Route("api/[controller]")]
     public class OrdersController : ControllerBase
     {
-        private readonly AppDbContext _context;
+        private readonly IOrderRepository _orderRepository;
 
-        public OrdersController(AppDbContext context)
+        public OrdersController(IOrderRepository orderRepository)
         {
-            _context = context;
+            _orderRepository = orderRepository;
         }
 
         [HttpGet]
         public async Task<IActionResult> GetAllOrders()
         {
-            var orders = await _context.Orders
-                .Include(order => order.OrderItems)
-                .ToListAsync();
+            var orders = await _orderRepository.GetAllOrdersAsync();
 
             var response = new ApiResponse<OrderResponse>
             {
@@ -48,9 +45,7 @@ namespace MiniStoreManagement.Controllers
         [HttpGet("{id:int}")]
         public async Task<IActionResult> GetOrderById(int id)
         {
-            var order = await _context.Orders
-                .Include(order => order.OrderItems)
-                .SingleOrDefaultAsync(order => order.Id == id);
+            var order = await _orderRepository.GetOrderByIdAsync(id);
 
             if (order is null)
             {
@@ -77,9 +72,7 @@ namespace MiniStoreManagement.Controllers
         [HttpPost]
         public async Task<IActionResult> AddOrder([FromBody] OrderRequest request)
         {
-            var customer = await _context.Customers.FindAsync(request.CustomerId);
-
-            if (customer is null)
+            if (!await _orderRepository.CustomerExistsAsync(request.CustomerId))
             {
                 return BadRequest("Customer does not exist.");
             }
@@ -93,7 +86,7 @@ namespace MiniStoreManagement.Controllers
 
             foreach (var requestedProduct in request.Items)
             {
-                var product = await _context.Products.FindAsync(requestedProduct.ProductId);
+                var product = await _orderRepository.GetProductByIdAsync(requestedProduct.ProductId);
 
                 if (product is null)
                 {
@@ -108,8 +101,7 @@ namespace MiniStoreManagement.Controllers
                 });
             }
 
-            _context.Orders.Add(order);
-            await _context.SaveChangesAsync();
+            order = await _orderRepository.AddOrderAsync(order);
 
             var response = new OrderResponse
             {
@@ -133,25 +125,23 @@ namespace MiniStoreManagement.Controllers
             [FromRoute] int id,
             [FromBody] OrderUpdateRequest request)
         {
-            var order = await _context.Orders.FindAsync(id);
-
-            if (order is null)
+            if (await _orderRepository.GetOrderByIdAsync(id) is null)
             {
                 return NotFound();
             }
 
-            var customer = await _context.Customers.FindAsync(request.CustomerId);
-
-            if (customer is null)
+            if (!await _orderRepository.CustomerExistsAsync(request.CustomerId))
             {
                 return BadRequest("Customer does not exist.");
             }
 
-            order.CustomerId = request.CustomerId;
-            order.OrderDate = request.OrderDate;
-            order.Status = request.Status;
-
-            await _context.SaveChangesAsync();
+            var order = await _orderRepository.EditOrderAsync(id, new Order
+            {
+                CustomerId = request.CustomerId,
+                OrderDate = request.OrderDate,
+                Status = request.Status
+            });
+            if (order is null) return NotFound();
 
             var response = new OrderResponse
             {
@@ -167,15 +157,10 @@ namespace MiniStoreManagement.Controllers
         [HttpDelete("{id:int}")]
         public async Task<IActionResult> RemoveOrder([FromRoute] int id)
         {
-            var order = await _context.Orders.FindAsync(id);
-
-            if (order is null)
+            if (!await _orderRepository.RemoveOrderAsync(id))
             {
                 return NotFound();
             }
-
-            _context.Orders.Remove(order);
-            await _context.SaveChangesAsync();
 
             return NoContent();
         }

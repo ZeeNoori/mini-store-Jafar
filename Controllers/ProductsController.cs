@@ -1,9 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using MiniStoreManagement.Contracts.Requests;
 using MiniStoreManagement.Contracts.Responses;
-using MiniStoreManagement.Data;
 using MiniStoreManagement.Models;
+using MiniStoreManagement.Repositories;
 
 namespace MiniStoreManagement.Controllers
 {
@@ -11,14 +10,14 @@ namespace MiniStoreManagement.Controllers
     [Route("api/[controller]")]
     public class ProductsController : ControllerBase
     {
-        private readonly AppDbContext _context;
+        private readonly IProductRepository _productRepository;
 
-        public ProductsController(AppDbContext context) => _context = context;
+        public ProductsController(IProductRepository productRepository) => _productRepository = productRepository;
 
         [HttpGet]
         public async Task<ActionResult<ApiResponse<ProductResponse>>> GetAllProducts()
         {
-            var products = await _context.Products.ToListAsync();
+            var products = await _productRepository.GetAllProductsAsync();
 
             var response = new ApiResponse<ProductResponse>
             {
@@ -39,7 +38,7 @@ namespace MiniStoreManagement.Controllers
         [HttpGet("{id:int}")]
         public async Task<ActionResult<ProductResponse>> GetProductById(int id)
         {
-            var product = await _context.Products.FindAsync(id);
+            var product = await _productRepository.GetProductByIdAsync(id);
 
             if (product is null)
                 return NotFound();
@@ -60,7 +59,7 @@ namespace MiniStoreManagement.Controllers
         [HttpPost]
         public async Task<ActionResult<ProductResponse>> AddProduct(ProductRequest request)
         {
-            if (!await _context.Categories.AnyAsync(c => c.Id == request.CategoryId))
+            if (!await _productRepository.CategoryExistsAsync(request.CategoryId))
                 return BadRequest("Category does not exist.");
 
             var product = new Product
@@ -72,8 +71,7 @@ namespace MiniStoreManagement.Controllers
                 CategoryId = request.CategoryId
             };
 
-            _context.Products.Add(product);
-            await _context.SaveChangesAsync();
+            product = await _productRepository.AddProductAsync(product);
 
             var response = new ProductResponse
             {
@@ -91,17 +89,21 @@ namespace MiniStoreManagement.Controllers
         [HttpPut("{id:int}")]
         public async Task<ActionResult<ProductResponse>> EditProduct(int id, ProductRequest request)
         {
-            var product = await _context.Products.FindAsync(id);
-            if (product is null) return NotFound();
-            if (!await _context.Categories.AnyAsync(c => c.Id == request.CategoryId))
+            if (await _productRepository.GetProductByIdAsync(id) is null)
+                return NotFound();
+
+            if (!await _productRepository.CategoryExistsAsync(request.CategoryId))
                 return BadRequest("Category does not exist.");
 
-            product.Name = request.Name;
-            product.Description = request.Description;
-            product.Price = request.Price;
-            product.StockQuantity = request.StockQuantity;
-            product.CategoryId = request.CategoryId;
-            await _context.SaveChangesAsync();
+            var product = await _productRepository.EditProductAsync(id, new Product
+            {
+                Name = request.Name,
+                Description = request.Description,
+                Price = request.Price,
+                StockQuantity = request.StockQuantity,
+                CategoryId = request.CategoryId
+            });
+            if (product is null) return NotFound();
 
             var response = new ProductResponse
             {
@@ -119,11 +121,7 @@ namespace MiniStoreManagement.Controllers
         [HttpDelete("{id:int}")]
         public async Task<IActionResult> RemoveProduct(int id)
         {
-            var product = await _context.Products.FindAsync(id);
-            if (product is null) return NotFound();
-
-            _context.Products.Remove(product);
-            await _context.SaveChangesAsync();
+            if (!await _productRepository.RemoveProductAsync(id)) return NotFound();
             return NoContent();
         }
     }
